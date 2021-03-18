@@ -10,7 +10,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
 # Variables
 SYS_CHANNEL_NAME="syschannel"
 CHANNEL_NAME="mychannel"
-CHAINCODE_NAME="mychaincode"
+CHAINCODE_NAME="token-erc-20-chaincode"
 CHAINCODE_VERSION=1
 CHAINCODE_SEQUENCE=1
 CHAINCODE_SOURCE_PATH="/opt/gopath/src/github.com/chaincode/${CHAINCODE_NAME}"
@@ -18,6 +18,8 @@ PEER0_ORG1_CA=/tmp/hyperledger/org1/peer1/tls-msp/tlscacerts/tls-ca-tls-7052.pem
 PEER0_ORG2_CA=/tmp/hyperledger/org2/peer1/tls-msp/tlscacerts/tls-ca-tls-7052.pem
 ORDERER=orderer1-org0:7050
 SLEEP_DURATION=2
+MINT_AMOUNT=5000
+TRANSFER_AMOUNT=1000
 
 export SCRIPT_DIR=${SCRIPT_DIR}
 export COMPOSE_PROJECT_NAME=byfn
@@ -543,27 +545,59 @@ docker exec \
   --peerAddresses peer1-org1:7051 --tlsRootCertFiles ${PEER0_ORG1_CA} --peerAddresses peer1-org2:7051 --tlsRootCertFiles ${PEER0_ORG2_CA} \
   --isInit -c '{"Args":[]}' --tls
 
-## Query testGet
+## Mint some tokens
 sleep ${SLEEP_DURATION}
-docker exec \
-  -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org1/admin/msp" \
-  -e "CORE_PEER_ADDRESS=peer1-org1:7051" \
-  cli-org1 \
-  peer chaincode query --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} -c '{"Args":["testGet"]}' --tls
-
-## Invoke chaincode
+echo "Mint ${MINT_AMOUNT} tokens"
 docker exec \
   -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org1/admin/msp" \
   -e "CORE_PEER_ADDRESS=peer1-org1:7051" \
   cli-org1 \
   peer chaincode invoke invoke -o ${ORDERER} --cafile ${PEER0_ORG1_CA} --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} \
   --peerAddresses peer1-org1:7051 --tlsRootCertFiles ${PEER0_ORG1_CA} --peerAddresses peer1-org2:7051 --tlsRootCertFiles ${PEER0_ORG2_CA} \
-  -c '{"Args":["addMarks","Alice","68","84","89"]}' --tls
+  -c '{"function":"Mint","Args":["'"${MINT_AMOUNT}"'"]}' --tls
 
-## Query
+## Check balance
 sleep ${SLEEP_DURATION}
+echo "Org1's balance:"
+docker exec \
+  -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org1/admin/msp" \
+  -e "CORE_PEER_ADDRESS=peer1-org1:7051" \
+  cli-org1 \
+  peer chaincode query --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} -c '{"function":"ClientAccountBalance","Args":[]}' --tls
+
+## Get recipient's client ID
+sleep ${SLEEP_DURATION}
+RECIPIENT=`docker exec \
+  -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org2/admin/msp" \
+  -e "CORE_PEER_ADDRESS=peer1-org2:7051" \
+  cli-org2 \
+  peer chaincode query --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} -c '{"function":"ClientAccountID","Args":[]}' --tls`
+
+## Transfer some tokens
+sleep ${SLEEP_DURATION}
+echo "Transfer ${TRANSFER_AMOUNT} tokens"
+docker exec \
+  -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org1/admin/msp" \
+  -e "CORE_PEER_ADDRESS=peer1-org1:7051" \
+  cli-org1 \
+  peer chaincode invoke invoke -o ${ORDERER} --cafile ${PEER0_ORG1_CA} --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} \
+  --peerAddresses peer1-org1:7051 --tlsRootCertFiles ${PEER0_ORG1_CA} --peerAddresses peer1-org2:7051 --tlsRootCertFiles ${PEER0_ORG2_CA} \
+  -c '{"function":"Transfer","Args":[ "'"${RECIPIENT}"'","'"${TRANSFER_AMOUNT}"'"]}' --tls
+
+## Check balance
+sleep ${SLEEP_DURATION}
+echo "Org1's balance:"
+docker exec \
+  -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org1/admin/msp" \
+  -e "CORE_PEER_ADDRESS=peer1-org1:7051" \
+  cli-org1 \
+  peer chaincode query --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} -c '{"function":"ClientAccountBalance","Args":[]}' --tls
+
+## Check balance
+sleep ${SLEEP_DURATION}
+echo "Org2's balance:"
 docker exec \
   -e "CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/org2/admin/msp" \
   -e "CORE_PEER_ADDRESS=peer1-org2:7051" \
   cli-org2 \
-  peer chaincode query --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} -c '{"Args":["queryMarks","Alice"]}' --tls
+  peer chaincode query --channelID ${CHANNEL_NAME} --name ${CHAINCODE_NAME} -c '{"function":"ClientAccountBalance","Args":[]}' --tls
