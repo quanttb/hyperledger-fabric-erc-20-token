@@ -10,7 +10,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
 # Variables
 SYS_CHANNEL_NAME="syschannel"
 CHANNEL_NAME="mychannel"
-CHAINCODE_NAME="token-erc-20-chaincode"
+CHAINCODE_NAME="erc-20-token-chaincode"
 CHAINCODE_VERSION=1
 CHAINCODE_SEQUENCE=1
 CHAINCODE_SOURCE_PATH="/opt/gopath/src/github.com/chaincode/${CHAINCODE_NAME}"
