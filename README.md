@@ -1,16 +1,15 @@
-# Hyperledger Fabric 2.0 Network with CA Server
+# Hyperledger Fabric with ERC-20 token
 
 ## Overview
 
-- Based on [Fabric CA Operations Guide](https://hyperledger-fabric-ca.readthedocs.io/en/latest/operations_guide.html).
-- Hyperledger Fabric version: 2.1.1 and CA version: 1.4.7.
+- Hyperledger Fabric version: 2.3.1 and CA version: 1.5.0.
 - There are 3 organizations in the network:
   - Org0 (Orderer Org): 3 orderers.
   - Org1: 2 peers (using CouchDB).
   - Org2: 2 peers (using CouchDB).
 - There are 3 Root CAs (RCAs) for 3 organzations.
 - And one TLS CA.
-- Tested on MacOS 10.13.6.
+- Tested on CentOS 7.
 
 ## Prerequisites
 
